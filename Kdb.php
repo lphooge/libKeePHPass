@@ -14,6 +14,11 @@ if(!defined('SKIP_KEEPHPASS_INCLUDES')){ // define for using autoloader or manua
 	
 }
 
+/**
+ * @author Lutz-Peter Hooge
+ * @license http://www.gnu.org/licenses/lgpl-3.0.txt GNU LESSER GENERAL PUBLIC LICENSE
+ * @package libKeePHPass
+*/
 class Kdb{
 	
 	public $repair = false; // open files in relaxed mode and try to correct errors instead of throwing exceptions

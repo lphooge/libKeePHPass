@@ -1,4 +1,9 @@
 <?php
+/**
+ * @author Lutz-Peter Hooge
+ * @license http://www.gnu.org/licenses/lgpl-3.0.txt GNU LESSER GENERAL PUBLIC LICENSE
+ * @package libKeePHPass
+*/
 class KdbEntry {
 	
 	const TIME_NORMAL = 1072911600; // 1.1.2004 00:00:00
