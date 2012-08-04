@@ -12,6 +12,8 @@ class KdbGroup{
 	public $id = null; // unique (in db) group id
 	public $image_id = 0; // index of icon in icon image list
 	public $name = null;
+	
+	public $group_id = null; // this is internally generated, not saved in file
 
 	public $creation_time = self::TIME_NORMAL;
 	public $modification_time = self::TIME_NORMAL;

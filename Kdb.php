@@ -135,6 +135,18 @@ class Kdb{
 		$this->entry_index[$entry->guid] = $entry;
 	}
 	
+	
+	/**
+	 * Unregister an entry in this database
+	 * 
+	 * @param KdbEntry $entry
+	 */
+	protected function unregisterEntry(KdbEntry $entry){
+		if(array_key_exists($entry->guid, $this->entry_index)){
+			unset($this->entry_index[$entry->guid]);
+		}
+	}
+	
 	/**
 	 * Register an group in this database. Must be added to a group (or the root groups) additionally!
 	 * 
@@ -144,14 +156,27 @@ class Kdb{
 		$this->group_index[$group->id] = $group;
 	}
 	
+	/**
+	 * unregister an group in this database.
+	 * 
+	 * @param KdbGroup $group
+	 */
+	protected function unregisterGroup(KdbGroup $group){
+		if(array_key_exists($group->id, $this->group_index)){
+			unset($this->group_index[$group->id]);
+		}
+	}
+	
 	public function addGroup(KdbGroup $g, KdbGroup $parent=null){
 		$this->registerGroup($g);
 		if($parent){
 			$parent->groups[] = $g;
 			$g->level = $parent->level + 1;
+			$g->group_id = $parent->id;
 		} else {
 			$this->groups[] = $g;
 			$g->level = 0;
+			$g->group_id = null;
 		}
 		if(!empty($g->entries) or !empty($g->groups)){
 			$this->setDirty();
@@ -174,6 +199,40 @@ class Kdb{
 		$parent->entries[] = $e;
 	}
 	
+	public function removeEntry(KdbEntry $e){
+		$parent = $this->getGroupById($e->group_id);
+		foreach($parent->entries as $k=>$entry){
+			if($entry === $e){
+				unset($parent->entries[$k]);
+				$this->unregisterEntry($e);
+				return;
+			}
+		}
+		throw new Exception("entry was not found in parent group");
+	}
+	
+	
+	public function removeGroup(KdbGroup $g){
+		$has_subs = !empty($g->entries) or (!empty($g->groups));
+		if($g->group_id){
+			$parent = $this->getGroupById($g->group_id);
+		} else {
+			$parent = $this;
+		}	
+		
+		foreach($parent->groups as $k=>$group){
+			if($group === $g){
+				unset($parent->groups[$k]);
+				$this->unregisterGroup($g);
+				if($has_subs){
+					$this->setDirty();
+				}
+				return;
+			}
+		}
+		throw new Exception("entry was not found in parent group");
+	}
+	
 	/**
 	 * returns the group with the given ID if it is registered in this database
 	 * 
@@ -181,6 +240,7 @@ class Kdb{
 	 * @return KdbGroup
 	 */
 	public function getGroupById($id){
+		$this->cleanUp();
 		if(!array_key_exists($id, $this->group_index)){
 			throw new Exception("requested unknown group no $id");
 		}
@@ -191,6 +251,16 @@ class Kdb{
 		return $group;
 	}
 	
+	public function getGroupByName($name){
+		$this->cleanUp();
+		foreach($this->group_index as $g){
+			if($g->name == $name){
+				return $g;
+			}
+		}
+		throw new Exception("Group '$name' not found");
+	}
+	
 	/**
 	 * returns the entry with the given $id if it is registered in this database
 	 * 
@@ -198,6 +268,7 @@ class Kdb{
 	 * @return KdbEntry
 	 */
 	public function getEntryById($guid){
+		$this->cleanUp();
 		if(!array_key_exists($guid, $this->entry_index)){
 			throw new Exception("requested unknown entry no $guid");
 		}
@@ -206,6 +277,18 @@ class Kdb{
 			throw new Exception("invalid entry no $guid");
 		}
 		return $entry;
+	}
+	
+	/**
+	 * Returns the first group in the database
+	 * 
+	 * @return KdbGroup
+	 */
+	public function getFirstGroup(){
+		if(!empty($this->groups)){
+			$first = reset($this->groups);
+			return $first;
+		}
 	}
 	
 	/**
