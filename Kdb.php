@@ -160,7 +160,14 @@ class Kdb{
 	
 	public function addEntry(KdbEntry $e, KdbGroup $parent=null){
 		if(!$parent){
-			$parent = $this->getGroupById($e->group_id);
+			if($e->group_id){
+				$parent = $this->getGroupById($e->group_id);
+			} elseif($this->groups) { // just add to first group then
+				$parent = reset($this->groups);
+				$e->group_id = $parent->id;
+			} else {
+				throw new Exception("no group found for adding entry to");
+			}
 		}
 		
 		$this->registerEntry($e);
