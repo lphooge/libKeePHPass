@@ -81,29 +81,35 @@ class Kdb{
 	}
 	
 	/**
-	 * recursively rebuilds the group and entry index
-	 * TODO validate and correct the groups 'level'
+	 * rebuilds the group and entry index and the group levels
 	 * 
 	 * @param KdbGroup $group
 	 */
 	public function refreshIndex(){
 		$this->group_index = array();
 		$this->entry_index = array();
-		foreach($this->groups as $subgroup){
-			if(!$subgroup instanceof KdbGroup){
+		$group_ids_done = array();
+		foreach($this->groups as $group){
+			if(!$group instanceof KdbGroup){
 				throw new Exception("invalid group entry found");
 			}
-			$this->refreshIndexForGroup($subgroup);
+			$group->level = 0;
+			$this->refreshIndexForGroup($group, $group_ids_done);
 		}
 	}
 	
 	/**
-	 * recursively rebuilds the group and entry index
-	 * TODO validate and correct the groups 'level'
+	 * recursively rebuilds the group and entry index and the group levels
 	 * 
 	 * @param KdbGroup $group
+	 * @param array $group_ids_done groups alredy processed
 	 */
-	protected function refreshIndexForGroup(KdbGroup $group){
+	protected function refreshIndexForGroup(KdbGroup $group, &$group_ids_done = array()){
+		if(in_array($group->id, $group_ids_done)){
+			throw new Exception("Group $group->id is referenced multiple times");
+		}
+		$group_ids_done[] = $group->id;
+		
 		$this->registerGroup($group);
 		foreach($group->getEntries() as $entry){
 			if(!$entry instanceof KdbEntry){
@@ -115,7 +121,8 @@ class Kdb{
 			if(!$subgroup instanceof KdbGroup){
 				throw new Exception("invalid group entry found");
 			}
-			$this->refreshIndexForGroup($subgroup);
+			$subgroup->level = $group->level + 1;
+			$this->refreshIndexForGroup($subgroup, $group_ids_done);
 		}
 	}
 	
@@ -135,6 +142,29 @@ class Kdb{
 	 */
 	protected function registerGroup(KdbGroup $group){
 		$this->group_index[$group->id] = $group;
+	}
+	
+	public function addGroup(KdbGroup $g, KdbGroup $parent=null){
+		$this->registerGroup($g);
+		if($parent){
+			$parent->groups[] = $g;
+			$g->level = $parent->level + 1;
+		} else {
+			$this->groups[] = $g;
+			$g->level = 0;
+		}
+		if(!empty($g->entries) or !empty($g->groups)){
+			$this->setDirty();
+		}
+	}
+	
+	public function addEntry(KdbEntry $e, KdbGroup $parent=null){
+		if(!$parent){
+			$parent = $this->getGroupById($e->group_id);
+		}
+		
+		$this->registerEntry($e);
+		$parent->entries[] = $e;
 	}
 	
 	/**
@@ -219,6 +249,11 @@ class Kdb{
 		return $crypt;
 	}
 	
+	/**
+	 * @param string $filename
+	 * @param string $password
+	 * @return Kdb
+	 */
 	public static function open($filename, $password){
 		$kdb = new self();
 		$kdb->read($filename, $password);
@@ -329,18 +364,16 @@ class Kdb{
 		$_current_parent = array();
 		
 		foreach($groups as $group){ /* @var $group KdbGroup */
-			$this->registerGroup($group);
 			$_current_parent[$group->level] = $group;
 			
 			if(!empty($_current_parent[$group->level - 1])){
 				$parent = $_current_parent[$group->level - 1];
-				$parent->groups[] = $group;
 			} else {
-				$root_groups[] = $group;
+				$parent = null;
 			}
+			$this->addGroup($group, $parent);
 		}
 		// TODO: check levels of groups
-		$this->groups = $root_groups;
 		
 		// parse entries
 		$current_entry = 0;
@@ -350,18 +383,14 @@ class Kdb{
 			try{
 				$entry->parse($content_stream);
 			} catch(Exception $e){
-				$entries[] = $entry;
-				echo $e."\n";
+				if(!$this->repair){
+					throw $e;
+				}
+				$this->addEntry($entry);
 				break;
 			}
-			$entries[] = $entry;
+			$this->addEntry($entry);
 			$current_entry++;
-		}
-		
-		 // build entry index and add to tree
-		foreach($entries as $entry){ /* @var $entry KdbEntry */
-			$this->registerEntry($entry);
-			$this->getGroupById($entry->group_id)->entries[] = $entry;
 		}
 		
 		return $this;
