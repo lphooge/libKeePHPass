@@ -46,7 +46,7 @@ class GenericStream implements Stream{
 	public function __toString(){
 		$pos = $this->tell();
 		$this->rewind();
-		$str = $this->readAll();
+		$str = (string) $this->readAll();
 		$this->seek($pos);
 		return $str;
 	}
