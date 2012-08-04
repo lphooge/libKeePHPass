@@ -73,16 +73,16 @@ class KdbEntry {
 					$this->notes = trim($value, "\0");
 					break;
 				case 9:
-					$this->creation_time = Kdb::unpackTime($value); // acompressedtime
+					$this->creation_time = KdbUtil::unpackTime($value); // acompressedtime
 					break;
 				case 10:
-					$this->modification_time = Kdb::unpackTime($value);
+					$this->modification_time = KdbUtil::unpackTime($value);
 					break;
 				case 11:
-					$this->access_time = Kdb::unpackTime($value);
+					$this->access_time = KdbUtil::unpackTime($value);
 					break;
 				case 12:
-					$this->expiration_time = Kdb::unpackTime($value);
+					$this->expiration_time = KdbUtil::unpackTime($value);
 					break;
 				case 13:
 					$this->attachment_desc = trim($value, "\0");
@@ -121,10 +121,10 @@ class KdbEntry {
 		self::writeField($stream, 6, $this->username."\0");
 		self::writeField($stream, 7, $this->password."\0");
 		self::writeField($stream, 8, $this->notes."\0");
-		self::writeField($stream, 9, Kdb::packTime($this->creation_time));
-		self::writeField($stream,10, Kdb::packTime($this->modification_time));
-		self::writeField($stream,11, Kdb::packTime($this->access_time));
-		self::writeField($stream,12, Kdb::packTime($this->expiration_time));
+		self::writeField($stream, 9, KdbUtil::packTime($this->creation_time));
+		self::writeField($stream,10, KdbUtil::packTime($this->modification_time));
+		self::writeField($stream,11, KdbUtil::packTime($this->access_time));
+		self::writeField($stream,12, KdbUtil::packTime($this->expiration_time));
 		self::writeField($stream,13, $this->attachment_desc."\0");
 		self::writeField($stream,14, $this->attachment);
 		self::writeField($stream, 0xFFFF, '');

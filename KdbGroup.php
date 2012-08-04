@@ -30,6 +30,9 @@ class KdbGroup{
 		return $this->entries;
 	}
 	
+	/**
+	 * @return array 
+	 */
 	public function getGroups(){
 		return $this->groups;
 	}
@@ -57,16 +60,16 @@ class KdbGroup{
 					$this->name = trim($value, "\0");
 					break;
 				case 3:
-					$this->creation_time = Kdb::unpackTime($value); // acompressedtime
+					$this->creation_time = KdbUtil::unpackTime($value); // acompressedtime
 					break;
 				case 4:
-					$this->modification_time = Kdb::unpackTime($value);
+					$this->modification_time = KdbUtil::unpackTime($value);
 					break;
 				case 5:
-					$this->access_time = Kdb::unpackTime($value);
+					$this->access_time = KdbUtil::unpackTime($value);
 					break;
 				case 6:
-					$this->expiration_time = Kdb::unpackTime($value);
+					$this->expiration_time = KdbUtil::unpackTime($value);
 					break;
 				case 7:
 					$this->image_id = BinStr::toInt(substr($value,0,4));
@@ -100,10 +103,10 @@ class KdbGroup{
 		}
 		self::writeField($stream, 1, BinStr::fromInt($this->id, 4));
 		self::writeField($stream, 2, $this->name."\0");
-		self::writeField($stream, 3, Kdb::packTime($this->creation_time));
-		self::writeField($stream, 4, Kdb::packTime($this->modification_time));
-		self::writeField($stream, 5, Kdb::packTime($this->access_time));
-		self::writeField($stream, 6, Kdb::packTime($this->expiration_time));
+		self::writeField($stream, 3, KdbUtil::packTime($this->creation_time));
+		self::writeField($stream, 4, KdbUtil::packTime($this->modification_time));
+		self::writeField($stream, 5, KdbUtil::packTime($this->access_time));
+		self::writeField($stream, 6, KdbUtil::packTime($this->expiration_time));
 		self::writeField($stream, 7, BinStr::fromInt($this->image_id,4));
 		self::writeField($stream, 8, BinStr::fromInt($this->level,2));
 		self::writeField($stream, 9, BinStr::fromInt($this->flags,4));

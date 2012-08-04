@@ -7,6 +7,7 @@ if(!defined('SKIP_KEEPHPASS_INCLUDES')){ // define for using autoloader or manua
 	require_once "Stream/StringStream.php";
 	require_once "Stream/BinStr.php";
 	
+	require_once "KdbUtil.php";
 	require_once "KdbHeader.php";
 	require_once "KdbGroup.php";
 	require_once "KdbEntry.php";
@@ -23,17 +24,31 @@ class Kdb{
 	
 	public $repair = false; // open files in relaxed mode and try to correct errors instead of throwing exceptions
 	
+	protected $is_dirty = false;
+	
 	/**
 	 * @var KdbHeader 
 	 */
-	public $header = null;
+	protected $header = null;
 	
-	public $groups = array(); // array with root groups
+	protected $groups = array(); // array with root groups
 	protected $group_index = array(); // index of all groups in this db
 	protected $entry_index = array(); // index of all entries in this db
 	
+	
 	public function __construct(){
 		$this->header = new KdbHeader();
+	}
+	
+	public function setDirty(){
+		$this->is_dirty = true;
+	}
+	
+	protected function cleanUp(){
+		if($this->is_dirty){
+			$this->refreshIndex();
+			$this->is_dirty = false;
+		}
 	}
 
 	/**
@@ -51,6 +66,7 @@ class Kdb{
 	 * @return array
 	 */
 	public function getEntriesIndex(){
+		$this->cleanUp();
 		return $this->entry_index;
 	}
 	
@@ -60,27 +76,34 @@ class Kdb{
 	 * @return array
 	 */	
 	public function getGroupsIndex(){
+		$this->cleanUp();
 		return $this->group_index;
 	}
 	
 	/**
-	 * Rebuilds the group and entry index
+	 * recursively rebuilds the group and entry index
 	 * TODO validate and correct the groups 'level'
 	 * 
 	 * @param KdbGroup $group
 	 */
-	public function refreshIndex(KdbGroup $group=null){
-		if($group == null){
-			$this->group_index = array();
-			$this->entry_index = array();
-			foreach($this->groups as $subgroup){
-				if(!$subgroup instanceof KdbGroup){
-					throw new Exception("invalid group entry found");
-				}
-				$this->refreshIndex($subgroup);
+	public function refreshIndex(){
+		$this->group_index = array();
+		$this->entry_index = array();
+		foreach($this->groups as $subgroup){
+			if(!$subgroup instanceof KdbGroup){
+				throw new Exception("invalid group entry found");
 			}
-			return;
+			$this->refreshIndexForGroup($subgroup);
 		}
+	}
+	
+	/**
+	 * recursively rebuilds the group and entry index
+	 * TODO validate and correct the groups 'level'
+	 * 
+	 * @param KdbGroup $group
+	 */
+	protected function refreshIndexForGroup(KdbGroup $group){
 		$this->registerGroup($group);
 		foreach($group->getEntries() as $entry){
 			if(!$entry instanceof KdbEntry){
@@ -92,7 +115,7 @@ class Kdb{
 			if(!$subgroup instanceof KdbGroup){
 				throw new Exception("invalid group entry found");
 			}
-			$this->refreshIndex($subgroup);
+			$this->refreshIndexForGroup($subgroup);
 		}
 	}
 	
@@ -101,7 +124,7 @@ class Kdb{
 	 * 
 	 * @param KdbEntry $entry
 	 */
-	public function registerEntry(KdbEntry $entry){
+	protected function registerEntry(KdbEntry $entry){
 		$this->entry_index[$entry->guid] = $entry;
 	}
 	
@@ -110,7 +133,7 @@ class Kdb{
 	 * 
 	 * @param KdbGroup $group
 	 */
-	public function registerGroup(KdbGroup $group){
+	protected function registerGroup(KdbGroup $group){
 		$this->group_index[$group->id] = $group;
 	}
 	
@@ -149,58 +172,6 @@ class Kdb{
 	}
 	
 	/**
-	 * converts a binary kdb-date to unix timestamp
-	 * 
-	 * @param string $bintime
-	 * @return int
-	 */
-	public static function unpackTime($bintime){
-		if(strlen($bintime) < 5){
-			throw new Exception("invalid binary time value: ".BinStr::toHex($bintime));
-		}
-		
-		$dw1 = ord($bintime{0});
-		$dw2 = ord($bintime{1});
-		$dw3 = ord($bintime{2});
-		$dw4 = ord($bintime{3});
-		$dw5 = ord($bintime{4});
-		
-		$year = ($dw1 << 6) | ($dw2 >> 2);
-		$month = (($dw2 & 0x00000003) << 2) | ($dw3 >> 6);
-		$day = ($dw3 >> 1) & 0x0000001F;
-		$hour = (($dw3 & 0x00000001) << 4) | ($dw4 >> 4);
-		$minute = (($dw4 & 0x0000000F) << 2) | ($dw5 >> 6);
-		$second = $dw5 & 0x0000003F;
-		
-		$ts = mktime($hour,$minute,$second,$month,$day,$year);
-		return $ts;
-	}
-	
-	/**
-	 * converts a unix timestamp to binary kdb-date
-	 * 
-	 * @param int $time
-	 * @return string
-	 */
-	public static function packTime($time){
-		$year = (int) date('Y', $time);
-		$month = (int) date('m', $time);
-		$day = (int) date('d', $time);
-		$hour = (int) date('H', $time);
-		$minute = (int) date('i', $time);
-		$second = (int) date('s', $time);
-
-		$bytes = str_repeat("\0", 5);
-		$bytes{0} = (($year >> 6) & 0x0000003F);
-		$bytes{1} = ((($year & 0x0000003F) << 2) | (($month >> 2) & 0x00000003));
-		$bytes{2} = ((($month & 0x00000003) << 6) | (($day & 0x0000001F) << 1) | (($hour >> 4) & 0x00000001));
-		$bytes{3} = ((($hour & 0x0000000F) << 4) | (($minute >> 2) & 0x0000000F));
-		$bytes{4} = ((($minute & 0x00000003) << 6) | ($second & 0x0000003F));
-	
-		return $bytes;
-	}
-	
-	/**
 	 * encrypts the masterkey $rounds times with aes-ecb and the given key, and hashes it with sha256
 	 * all strings are in binary (not hex)
 	 * 
@@ -209,7 +180,7 @@ class Kdb{
 	 * @param int $rounds
 	 * @return string
 	 */
-	public static function transformMasterKey($masterkey, $key_seed, $rounds){
+	protected static function transformMasterKey($masterkey, $key_seed, $rounds){
 		if($key_seed === null){
 			return false;
 		}
