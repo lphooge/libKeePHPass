@@ -46,6 +46,15 @@ class KdbCrypt{
 		return substr($dec,0,$strlen-$padlen);
 	}
 	
+	public function padEncrypt($str){
+		$str = (string) $str;
+		$padding = 16 - strlen($str) % 16;
+		$str .= str_repeat(chr($padding), $padding);
+		return $this->encrypt($str);
+	}
+		
+	
+	
 	protected function init($key, $iv=null, $mode=MCRYPT_MODE_CBC, $algo=MCRYPT_RIJNDAEL_128){
 		$mcrypt = mcrypt_module_open($algo,null, $mode, null);
 		

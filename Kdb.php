@@ -530,12 +530,8 @@ class Kdb{
 		foreach($entries as $entry){
 			$entry->write($body);
 		}
-		$size = $body->tell();
 		
 		$header->content_hash = hash('sha256', (string) $body, true);
-		
-		$padding = $size % 16;
-		$body->write(str_repeat(chr($padding), $padding));
 		
 		//echo "output content: <br>";echo "<pre>".chunk_split(binStr::toHex($body),64)."</pre>";
 		//echo "<pre>".chunk_split(($body),64)."</pre>";
@@ -552,7 +548,7 @@ class Kdb{
 
 		// encrypt content
 		$crypt = self::getBodyCryptor($header, $finalkey);
-		$body_enc = $crypt->encrypt((string) $body);
+		$body_enc = $crypt->padEncrypt((string) $body);
 		unset($crypt);
 		
 		// write file
