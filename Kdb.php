@@ -251,14 +251,122 @@ class Kdb{
 		return $group;
 	}
 	
-	public function getGroupByName($name){
-		$this->cleanUp();
-		foreach($this->group_index as $g){
-			if($g->name == $name){
-				return $g;
-			}
+	/**
+	 * Return the first group with the given name
+	 * 
+	 * @param string $name
+	 * @return KdbGroup
+	 */
+	public function getGroupByName($name, $is_regex=false){
+		$matches = $this->getGroupsByName($name, $is_regex);
+		if(!empty($matches)){
+			return reset($matches);
 		}
 		throw new Exception("Group '$name' not found");
+	}
+	
+	/**
+	 * Return all groups with the given name
+	 * 
+	 * @param string $name
+	 * @return KdbGroup
+	 */
+	public function getGroupsByName($name, $is_regex=false){
+		return $this->getGroupsByField('name', $name, $is_regex);
+	}
+	
+	public function getEntryByName($value, $is_regex=false){
+		return $this->getEntryByField('name', $value, $is_regex);
+	}
+	
+	public function getEntryByUrl($value, $is_regex=false){
+		return $this->getEntryByField('url', $value, $is_regex);
+	}
+	
+	public function getEntryByUsername($value, $is_regex=false){
+		return $this->getEntryByField('username', $value, $is_regex);
+	}
+	
+	public function getEntryByField($field, $value, $is_regex=false){
+		$es = $this->getEntriesByField($field, $value, $is_regex, true);
+		if(count($es) > 0){
+			return reset($es);
+		}
+		throw new Exception("No matching entry found");
+	}
+	
+	/**
+	 * Returns all entries where the given field matches the given value
+	 * 
+	 * @param string $field
+	 * @param string $value
+	 * @param bool $is_regex treat the value as a perl compatible regular expression
+	 * @param bool $firstmatch return only the first match
+	 */
+	public function getEntriesByField($field, $value, $is_regex=false, $firstmatch=false){
+		$available_fields = get_class_vars('KdbEntry');
+		if(!in_array($field, $available_fields)){
+			throw new Exception("requested field '$field' in Entry does not exist or is not accessible");
+		}
+		$this->cleanUp();
+		$matches = array();
+		foreach($this->entry_index as $e){
+			
+			if($is_regex){
+				$match = preg_match($value, $e->$field);
+				if($match === false){
+					throw new Exception("invalid regular expression");
+				}
+				$match = (bool) $match;
+			} else {
+				$match = (bool) ($e->$field == $value);
+			} 
+			
+			if($match){
+				$matches[] = $e;
+				if($firstmatch){
+					return $matches;
+				}
+			}
+		}
+		return $matches;
+	}
+	
+	/**
+	 * Returns all groups where the given field matches the given value
+	 * 
+	 * @param string $field
+	 * @param string $value
+	 * @param bool $is_regex treat the value as a perl compatible regular expression
+	 * @param bool $firstmatch return only the first match
+	 */
+	public function getGroupsByField($field, $value, $is_regex=false, $firstmatch=false){
+		$available_fields = get_class_vars('KdbGroup');
+		if(!in_array($field, $available_fields)){
+			throw new Exception("requested field '$field' in Entry does not exist or is not accessible");
+		}
+		$this->cleanUp();
+		$matches = array();
+		foreach($this->group_index as $e){
+			
+			if($is_regex){
+				$match = preg_match($value, $e->$field);
+				if($match === false){
+					throw new Exception("invalid regular expression");
+				}
+				$match = (bool) $match;
+			} else {
+				$match = (bool) ($e->$field == $value);
+			} 
+			
+			if($match){
+				$matches[] = $e;
+				if($firstmatch){
+					return $matches;
+				}
+			}
+		}
+		return $matches;
 	}
 	
 	/**
