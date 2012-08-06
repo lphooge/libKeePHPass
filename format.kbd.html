@@ -1,0 +1,428 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>kdb format</title>
+<style type="text/css">
+	html{
+		font-size: 14px;
+	}
+	* {
+		font-family: sans-serif;
+	}
+	table{
+		border-collapse: collapse;
+	}
+	table td, table th{
+		text-align: center;
+		vertical-align: middle;
+	}
+	
+	table.pad td, table.pad th{
+		padding: 3px;
+	}
+	
+	td.vert{
+		height: 10em;
+		width: 2em;
+	}
+	td.vert div{
+		-moz-transform:rotate(-90deg);
+		-o-transform:rotate(-90deg);
+		white-space: nowrap;
+	}
+	
+	.left{
+		text-align: left;
+	}
+	
+	span[title], div[title]{
+		border-bottom: 1px dotted black;
+		cursor: help;
+	}
+	
+	.red, .red td{
+		background-color: #fee;	
+	}
+	.green, .green td{
+		background-color: #efe;
+	}
+	.blue, .blue td{
+		background-color: #eef;
+	}
+	.yel, .yel td{
+		background-color: #ffe;
+	}
+	
+	table.thickborder, .thickborder td, .thickborder th{
+		border: 2px solid black;
+	}
+	.thl{
+		border-left: 1px solid black !important;	
+	}
+	.thr{
+		border-right: 1px solid black !important;	
+	}
+</style>
+</head>
+<body>
+<h1>File Structure of kdb-Files</h1>
+<table border>
+	<tr>
+		<th></th>
+		<th colspan='11'>Header</td>
+		<th colspan='11'>
+			Body
+		</th>
+	</tr>
+	<tr>
+		<th><span title='bytes'>size</span></th>
+		<td class='blue'>4</td> 
+		<td class='blue'>4</td>
+		<td class='blue'>4</td>
+		<td class='blue'>4</td>
+		<td class='blue'>16</td>
+		<td class='blue'>16</td>
+		<td class='blue'>4</td>
+		<td class='blue'>4</td>
+		<td class='blue'>32</td>
+		<td class='blue'>32</td>
+		<td class='blue'>4</td>
+		<td colspan='11' class='red'><i>data_length + padding_length</i></td>
+	</tr>
+	<tr>
+		<th>data</th>
+		<td class='vert blue'><div title='file signature = 03d9a29a'>signature 1</div></td> 
+		<td class='vert blue'><div title='file signature = 65fb4bb5'>signature 2</div></td>
+		<td class='vert blue'><div title='1=SHA2 (always used), 2=AES, 4=ARCFOUR (not supported), 8=TWOFISH'>flags</div></td>
+		<td class='vert blue'><div title='current is 03000300'>version</div></td>
+		<td class='vert blue'><div title='salt for hashing with the master key when calculating the final key'>masterseed</div></td>
+		<td class='vert blue'><div title='encryption initialization vector'>encryption iv</div></td>
+		<td class='vert blue'><div title='number of groups'>groups</div></td>
+		<td class='vert blue'><div title='number of entries'>entries</div></td>
+		<td class='vert blue'><div title='sha256 has of decrypted data (without padding)'>content hash</div></td>
+		<td class='vert blue'><div title='used as iv when transforming the master key'>masterseed2</div></td>
+		<td class='vert blue'><div title='number of times the master key is transformed'>encryption rounds</div></td>
+		<td colspan='11' class='red'>
+			encrypted data
+			<div><small>
+			 with algorithm (AES or TwoFish 128bit, mode CBC) and <span title='from header'>iv</span> as defined in header and the <span title='see below'>final key</span>
+			 </small></div>
+		</td>
+	</tr>
+	<tr>
+		<th>decrypt</th>
+		<td rowspan='7' colspan="11" class='blue'></td>
+		<td colspan='11' class='yel'>&Darr;<i>decrypt</i>&Darr;</td>
+	</tr>
+	<tr>
+		<th><span title='bytes'>size</span></th>
+		<td colspan='10' class='green'><i>data_length</i></td>
+		<td class='green'><i>16 - data_length mod 16</i></td>
+	</tr>
+	<tr>
+		<th>data</th>
+		<td colspan='10' class='green'>Data</td>
+		<td rowspan='5' class='green'>
+			Padding
+			<div>
+				<small>filled with the size of the<br/> padding as unsigned char.
+				<br/>
+				examples: 01 or 0202 or 030303
+				</small>
+			</div>
+		</td>
+	</tr>
+	<tr>
+		<th></th>
+		<td colspan='4' class='green'>group 1</td>
+		<td rowspan='4' class='green'>...</td>
+		<td colspan='4' class='green'>entry 1</td>
+		<td rowspan='4' class='green'>...</td>
+	</tr>
+	<tr>
+		<th></th>
+		<td colspan='3' class='green'>field 1</td>
+		<td rowspan='3' class='green'>...</td>
+		<td colspan='3' class='green'>field 1</td>
+		<td rowspan='3' class='green'>...</td>
+	</tr>
+	<tr>
+		<th>size</th>
+		<td class='green'>2</td>
+		<td class='green'>4</td>
+		<td class='green'>field length</td>
+		<td class='green'>2</td>
+		<td class='green'>4</td>
+		<td class='green'>field length</td>
+	</tr>
+	<tr>
+		<th>data</th>
+		<td class='green vert'><div title='type FFFF marks the last field for the group'>field type</div></td>
+		<td class='green vert'><div>field length</div></td>
+		<td class='green vert'><div>field data</div></td>
+		<td class='green vert'><div title='type FFFF marks the last field for the entry'>field type</div></td>
+		<td class='green vert'><div>field length</div></td>
+		<td class='green vert'><div>field data</div></td>
+	</tr>
+</table>
+
+
+<div>
+	<h2>calculation of final key:</h2>
+	<code>
+		<var>masterkey</var> = sha256(<var>password</var>) <br/>
+		<var>masterkey</var> = for(<var>encryption rounds</var>) do encrypt <var>masterkey</var> with AES128 Mode ECB using iv <var>masterseed2</var><br/>
+		<var>masterkey</var> = sha256(<var>masterseed</var>) <br/>
+		<var>finalkey</var> = sha256(<var>masterseed</var> + <var>masterkey</var>)
+	</code>
+</div>
+
+<div>
+	<h2>group fields</h2>
+	<table class='pad' border='1'>
+		<tr>
+			<th>field type</th>
+			<th>field length</th>
+			<th>field value</th>
+			<th class='left'>remarks</th>
+		</tr>
+		<tr>
+			<td>0x0000</td>
+			<td>unknown</td>
+			<td></td>
+			<td class='left'>skip this when parsing, not used</td>
+		</tr>
+		<tr>
+			<td>0x0001</td>
+			<td>4</td>
+			<td>id</td>
+			<td class='left'>unique identifiyer for the group inside the database</td>
+		</tr>
+		<tr>
+			<td>0x0002</td>
+			<td>variable</td>
+			<td>name</td>
+			<td class='left'>null-terminated string in utf8 encoding</td>
+		</tr>
+		<tr>
+			<td>0x0003</td>
+			<td>5</td>
+			<td>creation time</td>
+			<td class='left'><span title="see below">binary time</span></td>
+		</tr>
+		<tr>
+			<td>0x0004</td>
+			<td>5</td>
+			<td>modification time</td>
+			<td class='left'>binary time</td>
+		</tr>
+		<tr>
+			<td>0x0005</td>
+			<td>5</td>
+			<td>last access time</td>
+			<td class='left'>binary time</td>
+		</tr>		
+		<tr>
+			<td>0x0006</td>
+			<td>5</td>
+			<td>exipration time</td>
+			<td class='left'>binary time</td>
+		</tr>		
+		<tr>
+			<td>0x0007</td>
+			<td>4</td>
+			<td>image id</td>
+			<td class='left'>integer, index to the internal image list of keepass</td>
+		</tr>
+		<tr>
+			<td>0x0008</td>
+			<td>2</td>
+			<td>level</td>
+			<td class='left'>short integer, nesting level of group (0 = root group)</td>
+		</tr>
+		<tr>
+			<td>0x0009</td>
+			<td>4</td>
+			<td>flags</td>
+			<td class='left'>not currently used, should be 0</td>
+		</tr>
+		<tr>
+			<td>0xFFFF</td>
+			<td>0</td>
+			<td></td>
+			<td class='left'>marker for end of group</td>
+		</tr>
+	</table>
+</div>
+
+<div>
+	<h2>entry fields</h2>
+	<table class='pad' border='1'>
+		<tr>
+			<th>field type</th>
+			<th>field length</th>
+			<th>field value</th>
+			<th class='left'>remarks</th>
+		</tr>
+		<tr>
+			<td>0x0000</td>
+			<td>unknown</td>
+			<td></td>
+			<td class='left'>skip this when parsing, not used</td>
+		</tr>
+		<tr>
+			<td>0x0001</td>
+			<td>16</td>
+			<td>guid</td>
+			<td class='left'>globally unique identifiyer for the entry</td>
+		</tr>
+		<tr>
+			<td>0x0002</td>
+			<td>4</td>
+			<td>group id</td>
+			<td class='left'>parent group id</td>
+		</tr>
+		<tr>
+			<td>0x0003</td>
+			<td>4</td>
+			<td>image id</td>
+			<td class='left'>integer, index to the internal image list of keepass</td>
+		</tr>
+		<tr>
+			<td>0x0004</td>
+			<td>variable</td>
+			<td>name</td>
+			<td class='left'>null terminated utf8 string</td>
+		</tr>
+		<tr>
+			<td>0x0005</td>
+			<td>variable</td>
+			<td>url</td>
+			<td class='left'>null terminated utf8 string</td>
+		</tr>
+		<tr>
+			<td>0x0006</td>
+			<td>variable</td>
+			<td>username</td>
+			<td class='left'>null terminated utf8 string</td>
+		</tr>		
+		<tr>
+			<td>0x0007</td>
+			<td>variable</td>
+			<td>password</td>
+			<td class='left'>null terminated utf8 string</td>
+		</tr>		
+		<tr>
+			<td>0x0008</td>
+			<td>variable</td>
+			<td>notes</td>
+			<td class='left'>null terminated utf8 string</td>
+		</tr>		
+		<tr>
+			<td>0x0009</td>
+			<td>5</td>
+			<td>creation time</td>
+			<td class='left'>binary time</td>
+		</tr>
+		<tr>
+			<td>0x000A</td>
+			<td>5</td>
+			<td>modification time</td>
+			<td class='left'>binary time</td>
+		</tr>
+		<tr>
+			<td>0x000B</td>
+			<td>5</td>
+			<td>access time</td>
+			<td class='left'>binary time</td>
+		</tr>		
+		<tr>
+			<td>0x000C</td>
+			<td>5</td>
+			<td>expiration time</td>
+			<td class='left'>binary time</td>
+		</tr>
+		<tr>
+			<td>0x000D</td>
+			<td>variable</td>
+			<td>attachment description</td>
+			<td class='left'>null terminated utf8 string</td>
+		</tr>
+		<tr>
+			<td>0x000E</td>
+			<td>variable</td>
+			<td>attachment</td>
+			<td class='left'>binary data</td>
+		</tr>
+		<tr>
+			<td>0xFFFF</td>
+			<td>0</td>
+			<td></td>
+			<td class='left'>marker for end of entry</td>
+		</tr>
+	</table>
+</div>
+	
+<div>
+	<h3>binary time format</h3>
+		<table class='thickborder'>
+			<tr class='red'>
+				<th>byte no</th>
+				<th>1</th>
+				<th colspan='2'>2</th>
+				<th colspan='3'>3</th>
+				<th colspan='2'>4</th>
+				<th colspan='2'>5</th>
+			</tr>
+			<tr class='red'>
+				<th>hex</th>
+				<td>1F</td>
+				<td colspan='2'>72</td>
+				<td colspan='3'>0D</td>
+				<td colspan='2'>61</td>
+				<td colspan='2'>F9</td>
+			</tr>
+			<tr class='red'>
+				<th><span title='significant bits first'>bin</span></th>
+				<td>00011111</td>
+				<td class='thr'>011100</td><td class='thl'>10</td>
+				<td class='thr'>00</td><td class='thl thr'>00110</td><td class='thl'>1</td>
+				<td class='thr'>0110</td><td class='thl'>0001</td>
+				<td class='thr'>11</td><td class='thl'>111001</td>
+			</tr>
+			<tr class='green'>
+				<th>parts</th>
+				<td colspan='2'>year</td>
+				<td colspan='2'>month</td>
+				<td>day</td>
+				<td colspan='2'>hour</td>
+				<td colspan='2'>minute</td>
+				<td>seconds</td>
+			</tr>
+			<tr class='green'>
+				<th>length</th>
+				<td colspan='2'>14bit</td>
+				<td colspan='2'>4bit</td>
+				<td>5bit</td>
+				<td colspan='2'>5bit</td>
+				<td colspan='2'>6bit</td>
+				<td>6bit</td>
+			</tr>
+			<tr class='green'>
+				<th>decimal</th>
+				<td colspan='2'>2012</td>
+				<td colspan='2'>8</td>
+				<td>6</td>
+				<td colspan='2'>22</td>
+				<td colspan='2'>7</td>
+				<td>57</td>
+			</tr>
+			<tr class='green'>
+				<th>date</th><td colspan="10">06.08.2012 22:07:57</td>
+			</tr>
+		</table>
+	</div>
+
+</body>
+</html>
