@@ -15,7 +15,7 @@ class BinStr extends GenericStream{
 	}
 	
 	public function readUnsignedChar(){
-		list(,$c) = unpack('C1',$this->read(4));
+		list(,$c) = unpack('C1',$this->read(1));
 		return $c;
 	}
 	
@@ -125,5 +125,11 @@ class BinStr extends GenericStream{
     		self::$_little_endian = ($i===current(unpack('v', $p)));
 		}
 		return self::$_little_endian;
+	}
+	
+	public static function assertLength($str, $length, $msg="unexpected field size"){
+		if(strlen($str) !== $length){
+			throw new Exception($msg);
+		}
 	}
 }

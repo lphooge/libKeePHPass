@@ -501,7 +501,7 @@ class Kdb{
 
 		// build key for decrypting
 		$masterkey = hash('sha256', $password, true);
-		$transformed_master_key = self::transformMasterKey($masterkey, $header->masterseed2, $header->key_enc_rounds);
+		$transformed_master_key = self::transformMasterKey($masterkey, $header->transformseed, $header->key_enc_rounds);
 		if(!$transformed_master_key){
 			throw new Exception("generating master key for decrypting failed");			
 		}
@@ -628,7 +628,7 @@ class Kdb{
 		
 		$header->masterseed = substr($rnd,0,16);		
 		$header->encryptionIV = substr($rnd,16,16);
-		$header->masterseed2 = substr($rnd,32,32);
+		$header->transformseed = substr($rnd,32,32);
 		
 		$body = new BinStr(new StringStream());
 		
@@ -645,7 +645,7 @@ class Kdb{
 		//echo "<pre>".chunk_split(($body),64)."</pre>";
 		
 		// generate encryption key
-		$transformed_master_key = self::transformMasterKey($masterkey, $header->masterseed2, $header->key_enc_rounds);
+		$transformed_master_key = self::transformMasterKey($masterkey, $header->transformseed, $header->key_enc_rounds);
 		if(!$transformed_master_key){
 			throw new Exception("Transforming Master key failed");			
 		}
