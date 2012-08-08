@@ -27,7 +27,11 @@ class FileStream implements Stream {
 	}
 	
 	public function read($n){
-		return fread($this->handle, $n);
+		$str = @fread($this->handle, $n);
+		if($str === false OR strlen($str) < $n){
+			throw new Exception("read beyond end of stream");
+		}
+		return $str;
 	}
 	
 	public function readAll(){
