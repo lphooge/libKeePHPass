@@ -46,13 +46,13 @@ class FileStream implements Stream {
 	
 	
 	public function seek($n){
-		if(!fseek($this->handle, $n)){
+		if(fseek($this->handle, $n) != 0){
 			throw new Exception("could not seek to $n");
 		}
 	}
 	
 	public function skip($n){
-		if(!fseek($this->handle, $n, SEEK_CUR)){
+		if(fseek($this->handle, $n, SEEK_CUR) != 0){
 			throw new Exception("could not seek to $n");
 		}
 	}
