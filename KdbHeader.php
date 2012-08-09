@@ -7,39 +7,62 @@
 class KdbHeader {
 	
 	// Database file signature bytes
-	const SIG1_DEF = '03d9a29a'; // 0x9AA2D903;
-	const SIG2_DEF = '65fb4bb5'; // 0xB54BFB65;
+	const SIG1_DEF = '03d9a29a';
+	const SIG2_DEF = '65fb4bb5';
 	
-	const SIG1_KDBX_PRERELEASE = '03d9a29a'; // 0x9AA2D903;
-	const SIG2_KDBX_PRERELEASE = '66FB4BB5'; // 0xB54BFB66;
-	const SIG1_KDBX_RELEASE = '03d9a29a'; // 0x9AA2D903;
-	const SIG2_KDBX_RELEASE = '67fb4bb5'; // 0xB54BFB67;
+	const SIG1 = '03d9a29a';
+	const SIG2_KDB_RELEASE = '65fb4bb5';
+	const SIG2_KDBX_PRERELEASE = '66FB4BB5';
+	const SIG2_KDBX_RELEASE = '67fb4bb5';
 	
-	const VERSION_DEF = '03000300'; // 0x00030003
+	const VERSION_DEF = '03000300';
+	const VERSIONX_DEF = '00000300';
 	
 	const FLAG_SHA2 = 1;
 	const FLAG_AES = 2; 
-	const FLAG_ARCFOUR = 4;
+	const FLAG_ARCFOUR = 4; // not used
 	const FLAG_TWOFISH = 8;
 	
-	public $header_size = 0;
+	const CIPHER_AES = 1;
+	const CIPHER_TWOFISH = 2;
 	
-	public $signature1 = self::SIG1_DEF; // file identifier
-	public $signature2 = self::SIG2_DEF; // file identifier part 2
-	public $flags = 0;
+	/*
+	 * common fields
+	 */
+	
+	public $signature1 = self::SIG1; // file identifier
+	public $signature2 = self::SIG2_KDB_RELEASE; // file identifier part 2
 	public $version = self::VERSION_DEF;
+	
+	public $cipher = self::CIPHER_AES;
 
 	public $masterseed = null; // seed for hashing with the user key
 	public $encryptionIV = null; // 16 byte initialization vector
 
-	public $groups = 0; // amount of groups
-	public $entries = 0; //amount of entries
-
-	public $content_hash = null; // hash of the content (minus header and padding) for integrity checking
-
 	public $transformseed = null; // seed for used for the rounds AES transformations.
 	public $key_enc_rounds = 6000; // how often to itererate the master key transformation
 	
+	public $header_size = 0;
+	
+	/*
+	 * kdbx-specific fields
+	 */
+	
+	public $stream_start_bytes = null; // test string containing the first bytes of decrypted content
+	
+	/*
+	 * kdb-specific fields
+	 */
+	public $groups = null; // amount of groups
+	public $entries = null; //amount of entries
+
+	public $content_hash = null; // hash of the content (minus header and padding) for integrity checking
+
+	/**
+	 * Parse a header from a string or stream
+	 * 
+	 * @param mixed $input
+	 */
 	public function parse($input){ /* @var $input BinStr */
 		if(is_string($input)){
 			$input = new BinStr(new StringStream($input));
@@ -57,8 +80,18 @@ class KdbHeader {
 		$this->header_size = $input->tell();
 	}
 	
+	/**
+	 * parses the kdb-v1 specific parts
+	 * 
+	 * @param BinStr $input
+	 */
 	protected function parseV1(BinStr $input){
-		$this->flags = $input->readSignedLong(); 
+		$flags = $input->readSignedLong();
+		if($flags & self::FLAG_AES){
+			$this->cipher = self::CIPHER_AES;
+		} elseif($flags & self::FLAG_TWOFISH){
+			$this->cipher = self::CIPHER_TWOFISH;
+		}
 		$this->version = $input->readHex(4); // 4b
 		$this->masterseed = $input->read(16); // 16b
 		$this->encryptionIV = $input->read(16); // 16b
@@ -69,6 +102,11 @@ class KdbHeader {
 		$this->key_enc_rounds = $input->readUnsignedLong(); // 4b
 	}
 	
+	/**
+	 * parses the kdbx-specific parts
+	 * 
+	 * @param BinStr $input
+	 */
 	protected function parseV2(BinStr $input){
 		$this->version = $input->readHex(4); // 4b
 		
@@ -83,10 +121,18 @@ class KdbHeader {
 					break(2);
 				case 1:  // Comment
 					// debug?
+					$this->comment = $data;
 					break;
 				case 2:  // CipherID
 					BinStr::assertLength($data,16);
-					$this->cipher_uuid = $data; // TODO
+					$cipher_uuid = BinStr::toHex($data);
+					switch($cipher_uuid){
+						case '31c1f2e6bf714350be5805216afc5aff':
+							$this->cipher = self::CIPHER_AES;
+							break;
+						default:
+							throw new Exception("Unknown Cipher UUID $cipher_uuid");
+					}
 					break;
 				case 3:  // CompressionFlags
 					BinStr::assertLength($data,4);
@@ -109,6 +155,7 @@ class KdbHeader {
 					$this->stream_key = $data; // TODO NEW
 					break;
 				case 9:  // StreamStartBytes
+					BinStr::assertLength($data, 32);
 					$this->stream_start_bytes = $data; // TODO NEW
 					break;
 				case 10:  // InnerRandomStreamID
@@ -121,13 +168,27 @@ class KdbHeader {
 		}
 	}
 	
+	/**
+	 * writes the header to a stream
+	 * 
+	 * @param mixed $stream
+	 */
 	public function write($stream){ /* @var $stream BinStr */
 		if(!$stream instanceof BinStr){
 			$stream = new BinStr(new StringStream());
 		}
+		
+		$flags = 0;
+		if($this->cipher == self::CIPHER_AES){
+			$flags |= self::FLAG_AES;
+		} elseif($this->cipher == self::CIPHER_TWOFISH){
+			$flags |=  self::FLAG_TWOFISH;
+		}
+		$flags |= self::FLAG_SHA2;
+		
 		$stream->write(BinStr::fromHex($this->signature1));
 		$stream->write(BinStr::fromHex($this->signature2));
-		$stream->write(BinStr::fromInt($this->flags, 4));
+		$stream->write(BinStr::fromInt($flags, 4));
 		$stream->write(BinStr::fromHex($this->version));
 		$stream->write($this->masterseed);
 		$stream->write($this->encryptionIV);
@@ -139,24 +200,29 @@ class KdbHeader {
 		$this->header_size = $stream->tell();
 	}
 	
+	/**
+	 * Test if this is a kdbx-header
+	 * 
+	 * @return bool
+	 */
 	public function hasVersion2Signature(){
-		if($this->signature1 == self::SIG1_KDBX_PRERELEASE AND $this->signature2 == self::SIG2_KDBX_PRERELEASE){
+		if($this->signature1 == self::SIG1 AND $this->signature2 == self::SIG2_KDBX_PRERELEASE){
 			return true;
 		}
-		if($this->signature1 == self::SIG1_KDBX_RELEASE AND $this->signature2 == self::SIG2_KDBX_RELEASE){
+		if($this->signature1 == self::SIG1 AND $this->signature2 == self::SIG2_KDBX_RELEASE){
 			return true;
 		}
 		return false;
 	}
 	
+	/**
+	 * test if this is a kdb (v1) header
+	 * @return bool
+	 */
 	public function hasVersion1Signature(){
-		if($this->signature1 == self::SIG1_DEF AND $this->signature2 == self::SIG2_DEF){
+		if($this->signature1 == self::SIG1 AND $this->signature2 == self::SIG2_KDB_RELEASE){
 			return true;
 		}
 		return false;
-	}
-	
-	public function hasFlag($flag){
-		return (BinStr::toInt($this->flags) & $flag) != 0; 
 	}
 }

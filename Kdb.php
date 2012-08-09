@@ -436,9 +436,9 @@ class Kdb{
 	 * @return KdbCrypt
 	 */
 	protected static function getBodyCryptor(KdbHeader $header, $finalkey){
-		if($header->hasFlag(KdbHeader::FLAG_AES)){
+		if($header->cipher == KdbHeader::CIPHER_AES){
 			$crypt = new KdbCrypt($finalkey, $header->encryptionIV, MCRYPT_MODE_CBC, MCRYPT_RIJNDAEL_128);
-		} elseif($header->hasFlag(KdbHeader::FLAG_TWOFISH)){
+		} elseif($header->cipher == KdbHeader::CIPHER_TWOFISH){
 			$crypt = new KdbCrypt($finalkey, $header->encryptionIV, MCRYPT_MODE_CBC, MCRYPT_TWOFISH);
 		} else {
 			throw new Exception("Unsupported encryption type");
@@ -477,11 +477,12 @@ class Kdb{
 			throw new Exception("Invalid file header");
 		}
 		
+		$version = false;
 		if($header->hasVersion2Signature()){
-			throw new Exception("Unsupported kbdx v2 Format");
-		}
-
-		if(!$header->hasVersion1Signature()){
+			$version = 4;
+		} elseif($header->hasVersion1Signature()){
+			$version = 3;
+		} else {
 			throw new Exception("Unsupported Format");
 		}
 
@@ -501,6 +502,10 @@ class Kdb{
 
 		// build key for decrypting
 		$masterkey = hash('sha256', $password, true);
+		if($version == 4){
+			$masterkey = hash('sha256', $masterkey, true); // thanks to the minikeepass source, finally found this this is necessary
+		}
+		
 		$transformed_master_key = self::transformMasterKey($masterkey, $header->transformseed, $header->key_enc_rounds);
 		if(!$transformed_master_key){
 			throw new Exception("generating master key for decrypting failed");			
@@ -531,17 +536,38 @@ class Kdb{
 			}
 		}
 
-		// check if hash matches
-		if(!$this->repair){
+		// sanity checks
+		if(!$this->repair and $version == 3){ // hash check for kdb format...
 			$content_hash = hash('sha256', $body, true);
 			if($content_hash != $header->content_hash){
 				throw new Exception("checksum error, invalid key or currupted data");
 			}
+		} elseif($version == 4){ // first bytes check for kdbx
+			$stream_start = $content_stream->read(32); 
+			if($header->stream_start_bytes !== $stream_start){
+				throw new Exception("stream start bytes mismatch - wrong credentials?");
+			}
 		}
 		
 		// echo "decrypt successfull! <br>";
+		
+		if($version == 3){
+			$this->parseContentV3($content_stream);
+		} else {
+			$this->parseContentV4($content_stream);
+		}
 
+		return $this;
+	}
+	
+	protected function parseContentV4(BinStr $content_stream){
+		echo "parsing kdbx currently not supported, here is the raw content: <br>";
+		echo htmlspecialchars($content_stream->readAll());
+	}
+	
+	protected function parseContentV3(BinStr $content_stream){
 		// parse groups
+		$header = $this->header;
 		$current_group = 0;
 		$groups = array();
 		while($current_group < $header->groups){
@@ -590,8 +616,6 @@ class Kdb{
 			$this->addEntry($entry);
 			$current_entry++;
 		}
-		
-		return $this;
 	}
 
 	/**
@@ -610,9 +634,8 @@ class Kdb{
 		
 		$header = $this->header; /* @var $header KdbHeader */
 		
-		$header->signature1 = KdbHeader::SIG1_DEF;
-		$header->signature2 = KdbHeader::SIG2_DEF;
-		$header->flags |= KdbHeader::FLAG_SHA2;
+		$header->signature1 = KdbHeader::SIG1;
+		$header->signature2 = KdbHeader::SIG2_KDB_RELEASE;
 		$header->version = KdbHeader::VERSION_DEF;
 		
 		$header->groups = count($groups);
