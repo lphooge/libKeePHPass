@@ -11,6 +11,12 @@ class KdbCrypt{
 	protected $algo = null;
 	protected $iv = null;
 	
+	/**
+	 * @param string $key	encryption key
+	 * @param string $iv	initialisation vektor, if null an empty IV (null-bytes) is used
+	 * @param string $mode 	any of the MCRYPT_MODE_* constants
+	 * @param string $algo 	MCRYPT algorithm, like MCRYPT_RIJNDAEL_128, MCRYPT_TWOFISH
+	 */
 	public function __construct($key, $iv=null, $mode=MCRYPT_MODE_CBC, $algo=MCRYPT_RIJNDAEL_128){
 		$this->init($key, $iv, $mode, $algo);
 	}
@@ -33,6 +39,12 @@ class KdbCrypt{
 		return mdecrypt_generic($this->mcrypt, $str);
 	}
 	
+	/**
+	 * decrypt the string and remove PKCS7 padding
+	 * 
+	 * @param string $str
+	 * @return string
+	 */
 	public function padDecrypt($str){
 		$dec = $this->decrypt($str);
 		$strlen = strlen($dec);
@@ -46,6 +58,12 @@ class KdbCrypt{
 		return substr($dec,0,$strlen-$padlen);
 	}
 	
+	/**
+	 * add PKCS7 padding and encrypt the string
+	 * 
+	 * @param string $str
+	 * @return string
+	 */
 	public function padEncrypt($str){
 		$str = (string) $str;
 		$padding = 16 - strlen($str) % 16;
@@ -53,8 +71,6 @@ class KdbCrypt{
 		return $this->encrypt($str);
 	}
 		
-	
-	
 	protected function init($key, $iv=null, $mode=MCRYPT_MODE_CBC, $algo=MCRYPT_RIJNDAEL_128){
 		$mcrypt = mcrypt_module_open($algo,null, $mode, null);
 		
