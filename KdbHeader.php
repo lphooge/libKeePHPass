@@ -26,6 +26,8 @@ class KdbHeader {
 	const CIPHER_AES = 1;
 	const CIPHER_TWOFISH = 2;
 	
+	const COMPRESSION_GZIP = 1;
+	
 	/*
 	 * common fields
 	 */
@@ -49,6 +51,7 @@ class KdbHeader {
 	 */
 	
 	public $stream_start_bytes = null; // test string containing the first bytes of decrypted content
+	public $compression = 0; // 1 = gzip
 	
 	/*
 	 * kdb-specific fields

@@ -123,4 +123,19 @@ class KdbUtil{
 		}
 		return $output;
 	}
+	
+	/**
+	 * This is a wrapper for gzip/zlib decode function.
+	 * This is different from 'inflate' and 'uncompress', so a workaround is needed since the php zlib extension doesn't expose this function directly
+	 * 
+	 * @param string $encoded
+	 * @return string
+	 */
+	public static function gzdecode($encoded){
+		if (function_exists('gzdecode')){
+			return gzdecode($encoded);
+		} else {
+			return file_get_contents('compress.zlib://data:text/xml;base64,'. base64_encode($encoded));
+		}
+	}
 }

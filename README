@@ -12,7 +12,7 @@ REQUIREMENTS
 PHP 5.3 (other PHP 5.x versions will probably work but are untested)
 mcrypt extension
 hash extension
-
+zlib extension (for compressed kdbx files only)
 
 USAGE
 

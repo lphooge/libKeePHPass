@@ -570,8 +570,13 @@ class Kdb{
 	
 	protected function parseContentV4(BinStr $hashed_block_str){
 		$unhashed_str = KdbUtil::stripHashedBlocks($hashed_block_str);
-		$unhashed_str->rewind();
-		$this->raw_xml_data = $unhashed_str->readAll();
+		if($this->header->compression == KdbHeader::COMPRESSION_GZIP){
+			$xml = KdbUtil::gzdecode((string) $unhashed_str);
+		} else {
+			$xml = (string) $unhashed_str;
+		}
+		
+		$this->raw_xml_data = $xml;
 	}
 	
 	protected function parseContentV3(BinStr $content_stream){
