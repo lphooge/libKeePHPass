@@ -560,9 +560,12 @@ class Kdb{
 		return $this;
 	}
 	
-	protected function parseContentV4(BinStr $content_stream){
+	protected function parseContentV4(BinStr $hashed_block_str){
+		$unhashed_str = KdbUtil::stripHashedBlocks($hashed_block_str);
+		$unhashed_str->rewind();
+		
 		echo "parsing kdbx currently not supported, here is the raw content: <br>";
-		echo htmlspecialchars($content_stream->readAll());
+		echo htmlspecialchars($unhashed_str);
 	}
 	
 	protected function parseContentV3(BinStr $content_stream){

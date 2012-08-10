@@ -57,4 +57,70 @@ class KdbUtil{
 	
 		return $bytes;
 	}
+	
+	/**
+	 * decodes and validates hashed block stream, returns clean stream
+	 * 
+	 * @param BinStr $input
+	 * @param BinStr $output
+	 * @param bool $validate
+	 * @return BinStr
+	 */
+	public static function stripHashedBlocks(BinStr $input, BinStr $output = null, $validate=true){
+		if(!$output){
+			$output = new BinStr(new StringStream());
+		}
+		$buffer_index = 0;
+		while(!$input->eof()){
+			if($input->readUnsignedLong() !== $buffer_index){
+				throw new Exception("invalid data, unexpected block index");
+			}
+			$buffer_index++;
+			$stored_hash = $input->read(32);
+			$buffer_size = $input->readUnsignedLong();
+			
+			if($buffer_size){
+				$data = $input->read($buffer_size);
+				$hash = hash('sha256', $data, true);
+			} else {
+				$data = '';
+				$hash = str_repeat("\0", 32);
+			}
+			
+			// verify
+			if($validate AND $hash !== $stored_hash){
+				throw new Exception("invalid data, hash mismatch");
+			}
+			$output->write($data);
+		}
+		return $output;
+	}
+	
+	/**
+	 * encodes input stream with hashed blocks to output stream
+	 * 
+	 * @param BinStr $input
+	 * @param BinStr $output
+	 * @param int blocksize default 1MB
+	 * @return BinStr
+	 */
+	public static function writeHashedBlocks(BinStr $input, BinStr $output = null, $block_size=1048576){
+		if(!$output){
+			$output = new BinStr(new StringStream());
+		}
+		$buffer_index = 0;
+		while(true){
+			$data = $input->read($block_size);
+			$buffer_size = strlen($data);
+			$hash = $buffer_size>0?hash('sha256', $data):str_repeat("\0",32);
+			
+			$output->write(BinStr::fromInt($buffer_index,4));
+			$output->write($hash);
+			$output->write($buffer_size);
+			$output->write($data);
+			
+			$buffer_index++;
+		}
+		return $output;
+	}
 }
