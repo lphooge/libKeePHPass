@@ -35,6 +35,7 @@ class Kdb{
 	protected $group_index = array(); // index of all groups in this db
 	protected $entry_index = array(); // index of all entries in this db
 	
+	protected $raw_xml_data = null;
 	
 	public function __construct(){
 		$this->header = new KdbHeader();
@@ -458,6 +459,13 @@ class Kdb{
 		return $kdb;
 	}
 	
+	public function getXml(){
+		if($this->raw_xml_data !== null){
+			return $this->raw_xml_data;
+		}
+		throw new Exception("No XML-Data available");
+	}
+	
 	/**
 	 * opens a kdb file
 	 * 
@@ -563,9 +571,7 @@ class Kdb{
 	protected function parseContentV4(BinStr $hashed_block_str){
 		$unhashed_str = KdbUtil::stripHashedBlocks($hashed_block_str);
 		$unhashed_str->rewind();
-		
-		echo "parsing kdbx currently not supported, here is the raw content: <br>";
-		echo htmlspecialchars($unhashed_str);
+		$this->raw_xml_data = $unhashed_str->readAll();
 	}
 	
 	protected function parseContentV3(BinStr $content_stream){

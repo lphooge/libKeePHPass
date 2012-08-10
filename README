@@ -2,15 +2,16 @@ libKeePHPass
 
 2012 by Lutz-Peter Hooge 
 
-this is library a for reading and writing KeePass database files (kdb) in PHP
-currently it supports reading and writing the current keepass 1.x format.
-There is no compatibility layer for older revisions or 2.x format.
+this is library a for reading and writing KeePass database files (kdb) in PHP.
+Currently reading and writing the current keepass 1.x (classic) format is supported,
+and reading raw xml data from kdbx files.
  
 
 REQUIREMENTS
 
 PHP 5.3 (other PHP 5.x versions will probably work but are untested)
 mcrypt extension
+hash extension
 
 
 USAGE
