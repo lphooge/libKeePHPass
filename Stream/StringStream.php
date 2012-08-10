@@ -67,4 +67,13 @@ class StringStream implements Stream {
 		$this->str = '';
 		$this->ptr = 0;
 	}
+	
+	public function size(){
+		return strlen($this->str);
+	}
+	
+	public function eof(){
+		return $this->ptr >= strlen($this->str);
+	}
+	
 }

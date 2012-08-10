@@ -64,4 +64,16 @@ class FileStream implements Stream {
 	public function tell(){
 		return ftell($this->handle);
 	}
+	
+	public function size(){
+		$stat = @fstat($this->handle);
+		if($stat AND isset($stat['size'])){
+			return (int) $stat['size'];
+		}
+		throw new Exception("stat is not supported on this stream");
+	}
+	
+	public function eof(){
+		return feof($this->handle);
+	}
 }

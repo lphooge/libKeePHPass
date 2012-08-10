@@ -11,5 +11,9 @@ interface Stream {
 	function rewind();
 	function tell();
 	
+	function size();
+	
+	function eof();
+	
 	function readAll();
 }

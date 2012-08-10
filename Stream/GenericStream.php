@@ -43,6 +43,18 @@ class GenericStream implements Stream{
 		return $this->stream->tell();
 	}
 	
+	function size(){
+		return $this->stream->size();
+	}
+	
+	function eof(){
+		return $this->stream->eof();
+	}
+	
+	function remaining(){
+		return $this->size() - $this->tell();
+	}
+	
 	public function __toString(){
 		$pos = $this->tell();
 		$this->rewind();
