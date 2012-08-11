@@ -109,14 +109,14 @@ class KdbUtil{
 			$output = new BinStr(new StringStream());
 		}
 		$buffer_index = 0;
-		while(true){
-			$data = $input->read($block_size);
-			$buffer_size = strlen($data);
-			$hash = $buffer_size>0?hash('sha256', $data):str_repeat("\0",32);
+		while(!$input->eof()){
+			$buffer_size = min($block_size, $input->remaining());
+			$data = $input->read($buffer_size);
+			$hash = $buffer_size>0?hash('sha256', $data, true):str_repeat("\0",32);
 			
 			$output->write(BinStr::fromInt($buffer_index,4));
 			$output->write($hash);
-			$output->write($buffer_size);
+			$output->write(BinStr::fromInt($buffer_size,4));
 			$output->write($data);
 			
 			$buffer_index++;
