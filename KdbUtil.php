@@ -109,8 +109,9 @@ class KdbUtil{
 			$output = new BinStr(new StringStream());
 		}
 		$buffer_index = 0;
-		while(!$input->eof()){
-			$buffer_size = min($block_size, $input->remaining());
+		while(true){
+			$remaining = $input->remaining();
+			$buffer_size = min($block_size, $remaining);
 			$data = $input->read($buffer_size);
 			$hash = $buffer_size>0?hash('sha256', $data, true):str_repeat("\0",32);
 			
@@ -120,6 +121,9 @@ class KdbUtil{
 			$output->write($data);
 			
 			$buffer_index++;
+			if($remaining == 0){
+				break;
+			}
 		}
 		return $output;
 	}

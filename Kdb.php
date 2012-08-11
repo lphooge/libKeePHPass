@@ -494,7 +494,7 @@ class Kdb{
 		} else {
 			throw new Exception("Unsupported Format");
 		}
-
+		
 		if(substr($header->version,2,6) != substr(KdbHeader::VERSION_DEF,2,6)){
 			if(($header->version == '00000200') || ($header->version == '01000200') || ($header->version == '02000200')){
 				// self::openDatabaseV2...
@@ -632,6 +632,25 @@ class Kdb{
 			$current_entry++;
 		}
 	}
+	
+	protected function writeContentV3(BinStr $body){
+		foreach($this->getGroupsIndex() as $group){
+			$group->write($body);
+		}
+		foreach($this->getEntriesIndex() as $entry){
+			$entry->write($body);
+		}
+	}
+	
+	protected function writeContentV4(BinStr $body){
+		if($this->header->compression == KdbHeader::COMPRESSION_GZIP){
+			$content = KdbUtil::gzencode($this->getXml());
+		} else {
+			$content = $this->getXml();
+		}
+		$content_stream = new BinStr(new StringStream($content));
+		KdbUtil::writeHashedBlocks($content_stream, $body);
+	}
 
 	/**
 	 * Save the database to a file
@@ -640,45 +659,61 @@ class Kdb{
 	 * @param string $password
 	 */
 	public function save($filename, $password){
-		$masterkey = hash('sha256', $password, true);
+		if(strtolower(pathinfo($filename, PATHINFO_EXTENSION)) == 'kdbx'){
+			$version = 4;
+		} else {
+			$version = 3;
+		}
 		
 		$this->refreshIndex();
-		
-		$groups = $this->getGroupsIndex();
-		$entries = $this->getEntriesIndex();
 		
 		$header = $this->header; /* @var $header KdbHeader */
 		
 		$header->signature1 = KdbHeader::SIG1;
-		$header->signature2 = KdbHeader::SIG2_KDB_RELEASE;
-		$header->version = KdbHeader::VERSION_DEF;
+		if($version == 4){
+			$header->signature2 = KdbHeader::SIG2_KDBX_RELEASE;
+			$header->version = KdbHeader::VERSIONX_DEF;
+		} else {
+			$header->signature2 = KdbHeader::SIG2_KDB_RELEASE;
+			$header->version = KdbHeader::VERSION_DEF;
+		}
 		
-		$header->groups = count($groups);
-		$header->entries = count($entries);
+		$header->groups = count($this->getGroupsIndex());
+		$header->entries = count($this->getEntriesIndex());
 		
 		if(!$header->key_enc_rounds){
 			$header->key_enc_rounds = 6000;
 		}
-		
-		$header->masterseed = Rnd::read(16);		
+
+		if($version == 4){
+			$header->masterseed = Rnd::read(32);
+		} else {
+			$header->masterseed = Rnd::read(16);
+		}
 		$header->encryptionIV = Rnd::read(16);
 		$header->transformseed = Rnd::read(32);
 		
 		$body = new BinStr(new StringStream());
 		
-		foreach($groups as $group){
-			$group->write($body);
-		}
-		foreach($entries as $entry){
-			$entry->write($body);
-		}
 		
-		$header->content_hash = hash('sha256', (string) $body, true);
+		if($version == 3){
+			$this->writeContentV3($body);
+			$header->content_hash = hash('sha256', (string) $body, true);
+		} else {
+			$header->stream_start_bytes = Rnd::read(32);
+			$body->write($header->stream_start_bytes);
+			$this->writeContentV4($body);
+		}
 		
 		//echo "output content: <br>";echo "<pre>".chunk_split(binStr::toHex($body),64)."</pre>";
 		//echo "<pre>".chunk_split(($body),64)."</pre>";
 		
 		// generate encryption key
+		$masterkey = hash('sha256', $password, true);
+		if($version == 4){
+			$masterkey = hash('sha256', $masterkey, true);
+		}
+		
 		$transformed_master_key = self::transformMasterKey($masterkey, $header->transformseed, $header->key_enc_rounds);
 		if(!$transformed_master_key){
 			throw new Exception("Transforming Master key failed");			

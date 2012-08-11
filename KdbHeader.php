@@ -26,6 +26,10 @@ class KdbHeader {
 	const CIPHER_AES = 1;
 	const CIPHER_TWOFISH = 2;
 	
+	protected static $CIPHER_UIDS = array(
+		self::CIPHER_AES => '31c1f2e6bf714350be5805216afc5aff'
+	);
+	
 	const COMPRESSION_GZIP = 1;
 	
 	/*
@@ -80,6 +84,7 @@ class KdbHeader {
 		} else {
 			throw new Exception("Unknown header structure");
 		}
+		
 		$this->header_size = $input->tell();
 	}
 	
@@ -129,13 +134,11 @@ class KdbHeader {
 				case 2:  // CipherID
 					BinStr::assertLength($data,16);
 					$cipher_uuid = BinStr::toHex($data);
-					switch($cipher_uuid){
-						case '31c1f2e6bf714350be5805216afc5aff':
-							$this->cipher = self::CIPHER_AES;
-							break;
-						default:
-							throw new Exception("Unknown Cipher UUID $cipher_uuid");
+					$cipher_id = array_search($cipher_uuid, self::$CIPHER_UIDS);
+					if($cipher_id === false){
+						throw new Exception("Unknown Cipher UUID $cipher_uuid");
 					}
+					$this->cipher = $cipher_id;
 					break;
 				case 3:  // CompressionFlags
 					BinStr::assertLength($data,4);
@@ -159,7 +162,7 @@ class KdbHeader {
 					break;
 				case 9:  // StreamStartBytes
 					BinStr::assertLength($data, 32);
-					$this->stream_start_bytes = $data; // TODO NEW
+					$this->stream_start_bytes = $data;
 					break;
 				case 10:  // InnerRandomStreamID
 					BinStr::assertLength($data,4);
@@ -180,7 +183,19 @@ class KdbHeader {
 		if(!$stream instanceof BinStr){
 			$stream = new BinStr(new StringStream());
 		}
+
+		$stream->write(BinStr::fromHex($this->signature1));
+		$stream->write(BinStr::fromHex($this->signature2));
 		
+		if($this->hasVersion2Signature()){
+			$this->writeV4($stream);
+		} else {
+			$this->writeV3($stream);
+		}
+		$this->header_size = $stream->tell();
+	}
+	
+	protected function writeV3(BinStr $stream){
 		$flags = 0;
 		if($this->cipher == self::CIPHER_AES){
 			$flags |= self::FLAG_AES;
@@ -189,8 +204,6 @@ class KdbHeader {
 		}
 		$flags |= self::FLAG_SHA2;
 		
-		$stream->write(BinStr::fromHex($this->signature1));
-		$stream->write(BinStr::fromHex($this->signature2));
 		$stream->write(BinStr::fromInt($flags, 4));
 		$stream->write(BinStr::fromHex($this->version));
 		$stream->write($this->masterseed);
@@ -200,7 +213,36 @@ class KdbHeader {
 		$stream->write($this->content_hash);		
 		$stream->write($this->transformseed);
 		$stream->write(BinStr::fromInt($this->key_enc_rounds, 4));
-		$this->header_size = $stream->tell();
+	}
+
+	protected function writeV4(BinStr $stream){
+		$stream->write(BinStr::fromHex($this->version));
+		
+		$this->writeFieldV4($stream, 2, BinStr::fromHex($this->getCipherUUID()));
+		$this->writeFieldV4($stream, 3, BinStr::fromInt($this->compression, 4));
+		$this->writeFieldV4($stream, 4, $this->masterseed);
+		$this->writeFieldV4($stream, 5, $this->transformseed);
+		$this->writeFieldV4($stream, 6, BinStr::fromInt($this->key_enc_rounds, 4)."\0\0\0\0");
+		$this->writeFieldV4($stream, 7, $this->encryptionIV);
+		$this->writeFieldV4($stream, 8, $this->stream_key); // TODO: what is this for? generate? just passing through for now
+		$this->writeFieldV4($stream, 9, $this->stream_start_bytes);
+		$this->writeFieldV4($stream, 10, BinStr::fromInt($this->inner_random_stream_id, 4));
+		
+		$this->writeFieldV4($stream, 0, BinStr::fromHex('0d0a0d0a')); // EOH
+	}
+	
+	protected function writeFieldV4(BinStr $stream, $field_id, $data){
+		$stream->write(BinStr::fromInt($field_id, 1)); // field id
+		$stream->write(BinStr::fromInt(strlen($data), 2)); // field length		
+		if(strlen($data) > 0){
+			$stream->write($data);
+		}	
+	}
+	
+	public function getCipherUUID(){
+		if(array_key_exists($this->cipher, self::$CIPHER_UIDS)){
+			return self::$CIPHER_UIDS[$this->cipher];
+		}
 	}
 	
 	/**
