@@ -6,6 +6,7 @@ if(!defined('SKIP_KEEPHPASS_INCLUDES')){ // define for using autoloader or manua
 	require_once "Stream/FileStream.php";
 	require_once "Stream/StringStream.php";
 	require_once "Stream/BinStr.php";
+	require_once "Stream/Rnd.php";
 	
 	require_once "KdbUtil.php";
 	require_once "KdbHeader.php";
@@ -659,13 +660,9 @@ class Kdb{
 			$header->key_enc_rounds = 6000;
 		}
 		
-		// Make up the master key hash seed and the encryption IV
-		$rng_seed = $header->masterseed.$header->encryptionIV.$header->entries;
-		$rnd = hash('sha256', uniqid($rng_seed,true),true).hash('sha256', uniqid($rng_seed,true),true); // FIXME: find a better random number source
-		
-		$header->masterseed = substr($rnd,0,16);		
-		$header->encryptionIV = substr($rnd,16,16);
-		$header->transformseed = substr($rnd,32,32);
+		$header->masterseed = Rnd::read(16);		
+		$header->encryptionIV = Rnd::read(16);
+		$header->transformseed = Rnd::read(32);
 		
 		$body = new BinStr(new StringStream());
 		
