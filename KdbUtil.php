@@ -138,4 +138,8 @@ class KdbUtil{
 			return file_get_contents('compress.zlib://data:text/xml;base64,'. base64_encode($encoded));
 		}
 	}
+	
+	public static function gzencode($plain){
+		return gzencode($plain);
+	}
 }
