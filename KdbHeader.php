@@ -31,6 +31,7 @@ class KdbHeader {
 	);
 	
 	const COMPRESSION_GZIP = 1;
+	const COMPRESSION_NONE = 0;
 	
 	/*
 	 * common fields
@@ -55,7 +56,7 @@ class KdbHeader {
 	 */
 	
 	public $stream_start_bytes = null; // test string containing the first bytes of decrypted content
-	public $compression = 0; // 1 = gzip
+	public $compression = self::COMPRESSION_NONE;
 	
 	/*
 	 * kdb-specific fields
