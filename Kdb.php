@@ -431,6 +431,29 @@ class Kdb{
 	}
 	
 	/**
+	 * builds the master key from password and keyfile. the master key needs to be transformed with transformMasterKey to create the final key
+	 * 
+	 * @param string $password
+	 * @param string $keyfile
+	 * @param int $version
+	 */
+	protected static function buildMasterKey($password=false, $keyfile=false, $version=4){
+		$keys = array();
+		if($password !== false){
+			$keys[] = hash('sha256', $password, true);
+		}
+		if($keyfile !== false){
+			$keys[] = KdbUtil::getKeyfileKey($keyfile);
+		}
+		if($version == 4 OR count($keys) > 1){
+			$masterkey = hash('sha256', implode('', $keys), true);
+		} else {
+			$masterkey = $keys[0];
+		}
+		return $masterkey;
+	}
+	
+	/**
 	 * Returns en/decryptor object for the body part of the kdb-file
 	 * 
 	 * @param KdbHeader $header
@@ -452,11 +475,12 @@ class Kdb{
 	/**
 	 * @param string $filename
 	 * @param string $password
+	 * @param string $keyfile
 	 * @return Kdb
 	 */
-	public static function open($filename, $password){
+	public static function open($filename, $password, $keyfile=false){
 		$kdb = new self();
-		$kdb->read($filename, $password);
+		$kdb->read($filename, $password, $keyfile);
 		return $kdb;
 	}
 	
@@ -472,9 +496,10 @@ class Kdb{
 	 * 
 	 * @param string $filename
 	 * @param string $password
+	 * @param string $keyfile
 	 * @return Kdb
 	 */
-	public function read($filename,$password){
+	public function read($filename,$password, $keyfile=false){
 		$header = $this->header;
 		
 		$input = new BinStr(new FileStream($filename));
@@ -510,10 +535,7 @@ class Kdb{
 		}
 
 		// build key for decrypting
-		$masterkey = hash('sha256', $password, true);
-		if($version == 4){
-			$masterkey = hash('sha256', $masterkey, true); // thanks to the minikeepass source, finally found this this is necessary
-		}
+		$masterkey = self::buildMasterKey($password, $keyfile, $version);
 		
 		$transformed_master_key = self::transformMasterKey($masterkey, $header->transformseed, $header->key_enc_rounds);
 		if(!$transformed_master_key){
@@ -658,7 +680,7 @@ class Kdb{
 	 * @param string $filename
 	 * @param string $password
 	 */
-	public function save($filename, $password){
+	public function save($filename, $password, $keyfile=false){
 		if(strtolower(pathinfo($filename, PATHINFO_EXTENSION)) == 'kdbx'){
 			$version = 4;
 		} else {
@@ -709,10 +731,7 @@ class Kdb{
 		//echo "<pre>".chunk_split(($body),64)."</pre>";
 		
 		// generate encryption key
-		$masterkey = hash('sha256', $password, true);
-		if($version == 4){
-			$masterkey = hash('sha256', $masterkey, true);
-		}
+		$masterkey = self::buildMasterKey($password, $keyfile, $version);
 		
 		$transformed_master_key = self::transformMasterKey($masterkey, $header->transformseed, $header->key_enc_rounds);
 		if(!$transformed_master_key){
