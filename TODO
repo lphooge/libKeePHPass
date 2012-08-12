@@ -1,6 +1,6 @@
-- better api
-- legacy support (v1,v2)
+- unified api for accessing kdbx and kdb contents
+- unlocking kdbx passwords
+- legacy read support (v1,v2)
 - clean up binary reading (endianess)
 - repair/relaxed support
 - clean up support classes
-- kbdx support (keepass 2.x)
