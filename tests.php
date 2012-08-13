@@ -13,6 +13,7 @@
 		require_once "Kdb.php";
 		
 		echo "<h2>kdbx Tests</h2>";
+		$start = microtime(true);
 		
 		$tests = array(
 			array('file' => 'tests/test_pwd.kdbx', 'pwd' => 'test', 'keyfile' => false),
@@ -68,6 +69,9 @@
 			echo "<br/>";
 		}
 		unlink('tests/temp.kdb');
+		
+		$time = microtime(true)- $start;
+		echo "<p>tests took $time seks</p>";
 	} catch(Exception $e){
 		echo "</pre>";
 		?>
