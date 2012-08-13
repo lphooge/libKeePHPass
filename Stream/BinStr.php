@@ -1,27 +1,56 @@
 <?php
 class BinStr extends GenericStream{
 	
+	// read unsigned
 	public function readUnsignedLong(){
-		list(,$l) = unpack('L1', $this->read(4));
-		if($l < 0){ // can happen if PHP_INT_SIZE = 4
-			throw new Exception("Integer overflow: number is too big for unsigned integer");
-		}
-		return $l;
+		return self::toUInt($this->read(4));
 	}
 	
 	public function readUnsignedShort(){
-		list(,$s) = unpack('S1',$this->read(2));
-		return $s;
+		return self::toUInt($this->read(2));
 	}
 	
 	public function readUnsignedChar(){
-		list(,$c) = unpack('C1',$this->read(1));
-		return $c;
+		return self::toUInt($this->read(1));
 	}
 	
+	// read signed
 	public function readSignedLong(){
-		list(,$l) = unpack('l1',$this->read(4));
-		return $l;
+		return self::toInt($this->read(4));
+	}
+	
+	public function readSignedShort(){
+		return self::toInt($this->read(2));
+	}
+	
+	public function readSignedChar(){
+		return self::toInt($this->read(1));
+	}
+	
+	// write unsigned
+	public function writeSignedLong(){
+		$this->write(self::toInt(4));
+	}
+	
+	public function writeSignedShort(){
+		$this->write(self::toInt(2));
+	}
+	
+	public function writeSignedChar(){
+		$this->write(self::toUInt(1));
+	}
+	
+	// write insigned
+	public function writeUnsignedLong(){
+		$this->write(self::toUInt(4));
+	}
+	
+	public function writeUnsignedShort(){
+		$this->write(self::toUInt(2));
+	}
+	
+	public function writeUnsignedChar(){
+		$this->write(self::toUInt(1));
 	}
 	
 	/**
@@ -31,8 +60,7 @@ class BinStr extends GenericStream{
 	 * return string
 	 */
 	public function readHex($bytes=1){
-		list(,$h) = unpack('H*', $this->read($bytes));
-		return $h;
+		return self::toHex($this->read($bytes));
 	}
 	
 	/**
@@ -41,90 +69,150 @@ class BinStr extends GenericStream{
 	 * @param int $bytes
 	 */
 	public function readHexNumber($bytes=1){
-		list(,$h) = unpack('h*', $this->read($bytes));
-		return strrev($h);
+		return self::toHexNumber($this->read($bytes));
 	}
 	
 	
 	// Static transform helpers
 	
+	/**
+	 * gets an unsigned integer from a binary string assuming little-endian encoding.
+	 * this will throw an exeption if the result is to big for php's internal int
+	 * 
+	 * @param $bin
+	 * @return int
+	 */
 	public static function toUInt($bin){
-		switch(strlen($bin)){
+		$len = strlen($bin);
+		if($len > PHP_INT_SIZE){
+			throw new Exception("value is too big for type 'int'");
+		}
+		
+		switch($len){
 			case 1:
-				list(,$i) = unpack('C',$bin);
-				return $i;
+				list(,$int) = unpack('C',$bin); // C = unsigned char
+				return $int;
 			case 2:
-				list(,$i) = unpack('v', $bin);
-				return $i;
+				list(,$int) = unpack('v', $bin); // v = unsigned short (always 16 bit, little endian byte order)
+				return $int;
 			case 4:
-				list(,$i) = unpack('V', $bin);
-				if($i < 0){
-					throw new Exception("integer overflow in unsigned long");
+				list(,$int) = unpack('V', $bin); // V = unsigned long (always 32 bit, little endian byte order)
+				break;
+			default:
+				$int = 0;
+				for($i=0;$i<$len;$i++){
+					$int |= ord($bin{$i}) << $i*8;
 				}
-				return $i;
-			}
-		throw new Exception("not implemented for size ".strlen($bin));
+				break;
+		}
+		if($int > PHP_INT_MAX OR $int < 0){
+			throw new Exception("value is too big for an unsigned int");
+		}
+		return $int;
 	}
 	
+	/**
+	 * gets an signed integer from a binary string assuming little-endian encoding.
+	 * this will throw an exeption if the result is to big for php's internal int
+	 * 
+	 * @param $bin
+	 * @return int
+	 */
 	public static function toInt($bin){
 		$len = strlen($bin);
-		
-		if(!self::isMachineLittleEndian() AND ($len==2 OR $len==3)){
-			throw new Exception("currently not implemented");
+		if($len > PHP_INT_SIZE){
+			throw new Exception("value is too big for type 'int'");
 		}
 		
 		switch($len){
 			case 1:
-				list(,$i) = unpack('c',$bin);
-				return $i;
-			case 2:
-				list(,$i) = unpack('s', $bin);
-				return $i;
-			case 4:
-				list(,$i) = unpack('l', $bin);
-				return $i;
+				list(,$int) = unpack('c',$bin); // c = signed char
+				return $int;
+			default:
+				$i = $len - 1;
+				$c = ord($bin{$i});
+				$first = ($c & 0x80);
+				$rest = ($c & ~0x80);
+				$int = -$first + $rest;
+				for($i=$len-2;$i>=0;$i--){
+					$int = $int << 8;
+					$c = ord($bin{$i});
+					$int |= $c;
+				}
 		}
-		throw new Exception("not implemented for size ".strlen($bin));
-	}
-	
-	public static function fromInt($i, $len){
+		return $int;
+	}	
+
+	/**
+	 * creates a little-endian binary encoding of the signed int $int with length $len
+	 * 
+	 * @param $bin
+	 * @return int
+	 */
+	public static function fromInt($int, $len=4){
+		$int = (int) $int;
+		
 		switch($len){
 			case 1:
-				return pack('c', $i);
-			case 2:
-				return pack('s', $i); // beware of endianness
-			case 4:
-				return pack('l', $i); // beware of endianness
+				return pack('c', $int);
+			default:
+				$bin = '';
+				for($i=0;$i<$len;$i++){
+					$c = $int % 256;
+					$int = $int >> 8;
+					$bin .= chr($c); // does accept negative numbers
+				}
+				if($int > 0){
+					throw new Exception("Integer is too big for binary encoding with length $len");
+				}
 		}
-		throw new Exception("not implemented for size ".$len);
+		return $bin;
+	}
+		
+	/**
+	 * creates a little-endian binary encoding of the unsigned int $int with length $len
+	 * since php only knows signed int, this is only a wrapper that checks if the number is indeed positive
+	 * 
+	 * @param $bin
+	 * @return int
+	 */
+	public static function fromUInt($int, $len=4){
+		if($int < 0){
+			throw new Exception("number is not a positive integer");
+		}
+		self::fromInt($int, $len);
 	}
 	
-	public static function toNumber($bin){
-		return hexdec(self::toHexNumber($bin));
-	}
-	
+	/**
+	 * returns the data as a hexadecimal number (significat values first)
+	 *  
+	 * @param string $bin
+	 * @return string
+	 */
 	public static function toHexNumber($bin){
 		list(,$h) = unpack('h*', $bin);
 		return strrev($h);
 	}
 	
+	/**
+	 * returns the data as a hexadecimal string
+	 *  
+	 * @param string $bin
+	 * @return string
+	 */
 	public static function toHex($bin){
 		list(,$h) = unpack('H*', $bin);
 		return $h;
 	}
 	
+	/**
+	 * Gets a binay representation of the given hex string
+	 * 
+	 * @param string $hex
+	 * @return string
+	 */
 	public static function fromHex($hex){
 		return pack('H*', $hex);
-	}
-	
-	private static $_little_endian = null;
-	protected static function isMachineLittleEndian() {
-		if(self::$_little_endian === null){
-    		$i = 0x00FF;
-    		$p = pack('S', $i);
-    		self::$_little_endian = ($i===current(unpack('v', $p)));
-		}
-		return self::$_little_endian;
 	}
 	
 	public static function assertLength($str, $length, $msg="unexpected field size"){

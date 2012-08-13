@@ -153,7 +153,7 @@ class KdbHeader {
 					break;
 				case 6:  // TransformRounds
 					BinStr::assertLength($data,8);
-					$this->key_enc_rounds = BinStr::toNumber($data); // TODO: check for overflow
+					$this->key_enc_rounds = BinStr::toUInt(substr($data,0,4)); // currently only a limited range of encryption rounds is supported
 					break;
 				case 7:  // EncryptionIV
 					$this->encryptionIV = $data;
@@ -223,7 +223,7 @@ class KdbHeader {
 		$this->writeFieldV4($stream, 3, BinStr::fromInt($this->compression, 4));
 		$this->writeFieldV4($stream, 4, $this->masterseed);
 		$this->writeFieldV4($stream, 5, $this->transformseed);
-		$this->writeFieldV4($stream, 6, BinStr::fromInt($this->key_enc_rounds, 4)."\0\0\0\0");
+		$this->writeFieldV4($stream, 6, BinStr::fromInt($this->key_enc_rounds, 8));
 		$this->writeFieldV4($stream, 7, $this->encryptionIV);
 		$this->writeFieldV4($stream, 8, $this->stream_key); // TODO: what is this for? generate? just passing through for now
 		$this->writeFieldV4($stream, 9, $this->stream_start_bytes);
