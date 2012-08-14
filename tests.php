@@ -34,7 +34,10 @@
 				$db = Kdb::open('tests/temp.kdbx', $test['pwd'], $test['keyfile']);
 				if($db->getXml() != $original_data){
 					throw new Exception("data has changed");
-				} 
+				}
+				if(!$db->validateXml($xml_errors)){
+					throw new Exception("schema validation failed: ".implode(",\n", $xml_errors));
+				}
 				echo " <span style='color: green'>passed</span>";
 			} catch(Exception $e){
 				echo "<span title='".htmlspecialchars($e, ENT_QUOTES)."' style='color: red'>failed</span>";

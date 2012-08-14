@@ -14,6 +14,8 @@ if(!defined('SKIP_KEEPHPASS_INCLUDES')){ // define for using autoloader or manua
 	require_once "KdbEntry.php";
 	require_once "KdbCrypt.php";
 	
+	require_once "xml/XmlError.php";
+	
 }
 
 /**
@@ -484,13 +486,6 @@ class Kdb{
 		return $kdb;
 	}
 	
-	public function getXml(){
-		if($this->raw_xml_data !== null){
-			return $this->raw_xml_data;
-		}
-		throw new Exception("No XML-Data available");
-	}
-	
 	/**
 	 * opens a kdb file
 	 * 
@@ -755,5 +750,55 @@ class Kdb{
 		unset($stream);
 		
 		return true;
+	}
+	
+	
+	/**
+	 * XML-Content functions
+	 */
+	
+	public function getXml(){
+		if($this->dom !== null){
+			return $this->getDom()->saveXML();
+		}
+		if($this->raw_xml_data !== null){
+			return $this->raw_xml_data;
+		}
+		throw new Exception("No XML-Data available");
+	}
+	
+	public function setXml($xml){
+		return $this->raw_xml_data = $xml;
+		$this->dom = null;
+	}
+	
+	protected $dom = null;
+	
+	/**
+	 * @return DOMDocument
+	 */
+	public function getDom(){
+		if($this->dom === null){
+			$dom = new DOMDocument();
+			$dom->loadXML($this->getXml());
+			$this->dom = $dom;
+		}
+		return $this->dom;
+	}
+
+	/**
+	 * validates the xml data against a schema, places messages in the errors array
+	 * 
+	 * @param $errors array
+	 * @return bool
+	 */
+	public function validateXml(&$errors=array()){
+		$errors = array();
+		$libxml_error_prev = libxml_use_internal_errors(true);
+		$success = $this->getDom()->schemaValidate(dirname(realpath(__FILE__)).DIRECTORY_SEPARATOR.'xml'.DIRECTORY_SEPARATOR.'kdbx.xsd');
+		$errors = XmlError::wrapArray(libxml_get_errors());
+		libxml_clear_errors();
+		libxml_use_internal_errors($libxml_error_prev);
+		return $success;
 	}
 }
