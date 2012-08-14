@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
 	<xs:element name="KeePassFile" type="KeePassFileType" />
+	<xs:simpleType name="RelaxedBooleanType">
+		<xs:union>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="False" />
+					<xs:enumeration value="True" />
+					<xs:enumeration value="null" />
+					<xs:enumeration value="Null" />
+				</xs:restriction>
+			</xs:simpleType>
+			<xs:simpleType>
+				<xs:restriction base="xs:boolean" />
+			</xs:simpleType>
+		</xs:union>
+	</xs:simpleType>
 	<xs:complexType name="MemoryProtectionType">
 		<xs:sequence>
 			<xs:element type="xs:string" name="ProtectTitle" />
@@ -19,19 +34,19 @@
 			<xs:element type="xs:dateTime" name="DatabaseDescriptionChanged" />
 			<xs:element type="xs:string" name="DefaultUserName" />
 			<xs:element type="xs:dateTime" name="DefaultUserNameChanged" />
-			<xs:element type="xs:short" name="MaintenanceHistoryDays" />
+			<xs:element type="xs:integer" name="MaintenanceHistoryDays" />
 			<xs:element type="xs:string" name="Color" />
 			<xs:element type="xs:dateTime" name="MasterKeyChanged" />
-			<xs:element type="xs:byte" name="MasterKeyChangeRec" />
-			<xs:element type="xs:byte" name="MasterKeyChangeForce" />
+			<xs:element type="xs:integer" name="MasterKeyChangeRec" />
+			<xs:element type="xs:integer" name="MasterKeyChangeForce" />
 			<xs:element type="MemoryProtectionType" name="MemoryProtection" />
 			<xs:element type="xs:string" name="RecycleBinEnabled" />
 			<xs:element type="xs:string" name="RecycleBinUUID" />
 			<xs:element type="xs:dateTime" name="RecycleBinChanged" />
 			<xs:element type="xs:string" name="EntryTemplatesGroup" />
 			<xs:element type="xs:dateTime" name="EntryTemplatesGroupChanged" />
-			<xs:element type="xs:byte" name="HistoryMaxItems" />
-			<xs:element type="xs:int" name="HistoryMaxSize" />
+			<xs:element type="xs:integer" name="HistoryMaxItems" />
+			<xs:element type="xs:integer" name="HistoryMaxSize" />
 			<xs:element type="xs:string" name="LastSelectedGroup" />
 			<xs:element type="xs:string" name="LastTopVisibleGroup" />
 			<xs:element type="xs:string" name="Binaries" />
@@ -41,79 +56,17 @@
 	<xs:complexType name="TimesType">
 		<xs:sequence>
 			<xs:element type="xs:dateTime" name="LastModificationTime" />
-			<xs:element name="CreationTime">
-				<xs:simpleType>
-					<xs:restriction base="xs:dateTime">
-						<xs:enumeration value="2012-07-28T11:27:44Z" />
-						<xs:enumeration value="2012-07-28T11:29:05Z" />
-						<xs:enumeration value="2012-07-28T11:37:07Z" />
-						<xs:enumeration value="2012-07-28T11:41:01Z" />
-						<xs:enumeration value="2012-08-11T22:29:18Z" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
+			<xs:element type="xs:dateTime" name="CreationTime" />
 			<xs:element type="xs:dateTime" name="LastAccessTime" />
-			<xs:element name="ExpiryTime">
-				<xs:simpleType>
-					<xs:restriction base="xs:dateTime">
-						<xs:enumeration value="2012-07-28T11:26:08Z" />
-						<xs:enumeration value="2012-07-28T11:41:39Z" />
-						<xs:enumeration value="2012-07-28T11:41:08Z" />
-						<xs:enumeration value="2012-07-28T11:42:17Z" />
-						<xs:enumeration value="2012-07-28T11:41:41Z" />
-						<xs:enumeration value="2012-08-11T22:29:18Z" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
-			<xs:element name="Expires">
-				<xs:simpleType>
-					<xs:restriction base="xs:string">
-						<xs:enumeration value="False" />
-						<xs:enumeration value="True" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
-			<xs:element name="UsageCount">
-				<xs:simpleType>
-					<xs:restriction base="xs:byte">
-						<xs:enumeration value="28" />
-						<xs:enumeration value="0" />
-						<xs:enumeration value="1" />
-						<xs:enumeration value="2" />
-						<xs:enumeration value="12" />
-						<xs:enumeration value="5" />
-						<xs:enumeration value="4" />
-						<xs:enumeration value="3" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
-			<xs:element name="LocationChanged">
-				<xs:simpleType>
-					<xs:restriction base="xs:dateTime">
-						<xs:enumeration value="2012-07-28T11:27:44Z" />
-						<xs:enumeration value="2012-07-28T11:29:05Z" />
-						<xs:enumeration value="2012-07-28T11:37:07Z" />
-						<xs:enumeration value="2012-07-28T11:41:01Z" />
-						<xs:enumeration value="2012-08-11T22:29:18Z" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
+			<xs:element type="xs:dateTime" name="ExpiryTime" />
+			<xs:element type="RelaxedBooleanType" name="Expires" />
+			<xs:element type="xs:nonNegativeInteger" name="UsageCount" />
+			<xs:element type="xs:dateTime" name="LocationChanged" />
 		</xs:sequence>
 	</xs:complexType>
 	<xs:complexType name="StringType">
 		<xs:sequence>
-			<xs:element name="Key">
-				<xs:simpleType>
-					<xs:restriction base="xs:string">
-						<xs:enumeration value="Notes" />
-						<xs:enumeration value="Password" />
-						<xs:enumeration value="Title" />
-						<xs:enumeration value="URL" />
-						<xs:enumeration value="UserName" />
-						<xs:enumeration value="urks" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
+			<xs:element type="xs:string" name="Key" />
 			<xs:element name="Value">
 				<xs:complexType>
 					<xs:simpleContent>
@@ -141,21 +94,20 @@
 	<xs:complexType name="AutoTypeType">
 		<xs:sequence>
 			<xs:element type="xs:string" name="Enabled" />
-			<xs:element type="xs:byte" name="DataTransferObfuscation" />
+			<xs:element type="xs:integer" name="DataTransferObfuscation" />
 			<xs:element type="AssociationType" name="Association" minOccurs="0" />
 		</xs:sequence>
 	</xs:complexType>
 	<xs:complexType name="EntryType">
 		<xs:sequence>
 			<xs:element type="xs:string" name="UUID" />
-			<xs:element type="xs:byte" name="IconID" />
+			<xs:element type="xs:nonNegativeInteger" name="IconID" />
 			<xs:element type="xs:string" name="ForegroundColor" />
 			<xs:element type="xs:string" name="BackgroundColor" />
 			<xs:element type="xs:string" name="OverrideURL" />
 			<xs:element type="xs:string" name="Tags" />
 			<xs:element type="TimesType" name="Times" />
-			<xs:element type="StringType" name="String" maxOccurs="unbounded"
-				minOccurs="0" />
+			<xs:element type="StringType" name="String" maxOccurs="unbounded" minOccurs="0" />
 			<xs:element type="AutoTypeType" name="AutoType" />
 			<xs:element name="History" minOccurs="0">
 				<xs:complexType mixed="true">
@@ -174,43 +126,18 @@
 	<xs:complexType name="GroupType">
 		<xs:sequence>
 			<xs:element type="xs:string" name="UUID" />
-			<xs:element name="Name">
-				<xs:simpleType>
-					<xs:restriction base="xs:string">
-						<xs:enumeration value="General" />
-						<xs:enumeration value="Windows" />
-						<xs:enumeration value="Network" />
-						<xs:enumeration value="Internet" />
-						<xs:enumeration value="eMail" />
-						<xs:enumeration value="Homebanking" />
-						<xs:enumeration value="test2" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
+			<xs:element type="xs:string" name="Name" />
 			<xs:element type="xs:string" name="Notes" />
-			<xs:element name="IconID">
-				<xs:simpleType>
-					<xs:restriction base="xs:byte">
-						<xs:enumeration value="48" />
-						<xs:enumeration value="38" />
-						<xs:enumeration value="3" />
-						<xs:enumeration value="1" />
-						<xs:enumeration value="19" />
-						<xs:enumeration value="37" />
-						<xs:enumeration value="49" />
-					</xs:restriction>
-				</xs:simpleType>
-			</xs:element>
+			<xs:element type="xs:nonNegativeInteger" name="IconID" />
 			<xs:element type="TimesType" name="Times" />
-			<xs:element type="xs:string" name="IsExpanded" />
+			<xs:element type="RelaxedBooleanType" name="IsExpanded" />
 			<xs:element type="xs:string" name="DefaultAutoTypeSequence" />
-			<xs:element type="xs:string" name="EnableAutoType" />
-			<xs:element type="xs:string" name="EnableSearching" />
+			<xs:element type="RelaxedBooleanType" name="EnableAutoType" />
+			<xs:element type="RelaxedBooleanType" name="EnableSearching" />
 			<xs:element name="LastTopVisibleEntry">
 				<xs:simpleType>
-					<xs:restriction base="xs:string">
-						<xs:enumeration value="AAAAAAAAAAAAAAAAAAAAAA==" />
-						<xs:enumeration value="5FzGsYLswEW/C9uOHUkzNQ==" />
+					<xs:restriction base="xs:base64Binary">
+						<xs:length value="16"/>
 					</xs:restriction>
 				</xs:simpleType>
 			</xs:element>
